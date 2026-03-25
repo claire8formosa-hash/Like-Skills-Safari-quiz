@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Safari Animal Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;600;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: #fdf6e3;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 1rem;
+    background-image: radial-gradient(circle at 20% 20%, #ffe0a0 0%, transparent 50%),
+                      radial-gradient(circle at 80% 80%, #c8f0df 0%, transparent 50%);
+  }
+
+  #app {
+    background: white;
+    border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.10);
+    max-width: 520px;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  #header {
+    background: linear-gradient(135deg, #1D9E75, #0F6E56);
+    color: white;
+    padding: 1rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #header h1 {
+    font-family: 'Baloo 2', cursive;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+
+  #score-badge {
+    background: rgba(255,255,255,0.25);
+    border-radius: 99px;
+    padding: 4px 14px;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  #progress-wrap { background: #0F6E56; height: 10px; }
+  #progress-bar { height: 10px; background: #9FE1CB; transition: width 0.5s ease; width: 0%; }
+
+  #quiz-body { padding: 1rem 1rem 1.25rem; }
+  #q-counter { font-size: 13px; color: #aaa; margin-bottom: 4px; font-weight: 600; }
+  #q-text {
+    font-family: 'Baloo 2', cursive;
+    font-size: 21px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 0.85rem;
+    line-height: 1.3;
+  }
+
+  /* IMAGE with lazy loading + fade-in */
+  #main-img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 14px;
+    margin-bottom: 1rem;
+    border: 3px solid #e0f5ec;
+    background: #f0f9f4;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  #main-img.loaded { opacity: 1; }
+  #main-img.error { opacity: 1; background: #f0f9f4; }
+
+  #options {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 0.85rem;
+  }
+
+  .opt-btn {
+    background: white;
+    border: 3px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 0;
+    cursor: pointer;
+    overflow: hidden;
+    display: block;
+    width: 100%;
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    position: relative;
+  }
+
+  .opt-btn:hover:not(:disabled) {
+    border-color: #1D9E75;
+    transform: scale(1.04);
+    box-shadow: 0 4px 14px rgba(29,158,117,0.25);
+  }
+
+  .opt-btn img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 9px;
+    background: #f5f5f5;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .opt-btn img.loaded { opacity: 1; }
+
+  /* Image placeholder shown while loading */
+  .opt-btn::before {
+    content: '🐾';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 28px;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  .opt-btn img.loaded + *,
+  .opt-btn img.loaded ~ * { display: none; }
+
+  .opt-btn.correct { border-color: #1D9E75; box-shadow: 0 0 0 4px rgba(29,158,117,0.3); }
+  .opt-btn.wrong   { border-color: #E24B4A; box-shadow: 0 0 0 4px rgba(226,75,74,0.25); opacity: 0.6; }
+  .opt-btn.reveal  { border-color: #1D9E75; box-shadow: 0 0 0 4px rgba(29,158,117,0.3); }
+
+  #feedback {
+    min-height: 44px;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 10px;
+    margin-bottom: 0.65rem;
+    transition: opacity 0.2s;
+  }
+  #feedback.correct { color: #0F6E56; background: #E1F5EE; }
+  #feedback.wrong   { color: #A32D2D; background: #FCEBEB; }
+
+  #next-btn {
+    display: none;
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, #1D9E75, #0F6E56);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Baloo 2', cursive;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  #next-btn:hover { opacity: 0.92; transform: scale(1.01); }
+
+  /* END SCREEN */
+  #end-screen {
+    display: none;
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+  }
+  #trophy-icon { font-size: 72px; margin-bottom: 0.5rem; }
+  #end-title {
+    font-family: 'Baloo 2', cursive;
+    font-size: 26px;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+  }
+  #end-score {
+    font-family: 'Baloo 2', cursive;
+    font-size: 60px;
+    font-weight: 800;
+    color: #1D9E75;
+    margin: 0.25rem 0;
+  }
+  #end-msg { font-size: 17px; color: #666; margin-bottom: 1.5rem; }
+  #restart-btn {
+    padding: 13px 40px;
+    background: linear-gradient(135deg, #1D9E75, #0F6E56);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Baloo 2', cursive;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  #restart-btn:hover { opacity: 0.9; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <h1>🦁 Safari Animal Quiz</h1>
+    <div id="score-badge">⭐ <span id="score">0</span></div>
+  </div>
+  <div id="progress-wrap"><div id="progress-bar"></div></div>
+  <div id="quiz-body">
+    <div id="quiz-screen">
+      <div id="q-counter"></div>
+      <div id="q-text"></div>
+      <img id="main-img" src="" alt="" loading="lazy" decoding="async" />
+      <div id="options"></div>
+      <div id="feedback"></div>
+      <button id="next-btn" onclick="nextQ()">Next ➜</button>
+    </div>
+    <div id="end-screen">
+      <div id="trophy-icon"></div>
+      <div id="end-title">Quiz Complete!</div>
+      <div id="end-score"></div>
+      <div id="end-msg"></div>
+      <button id="restart-btn" onclick="restart()">Play Again! 🦁</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {q:"Where does a lion live?",              num:1,  answers:["Grassland","Igloo","Bathtub"],      correct:0},
+  {q:"What does an elephant use to drink?",  num:2,  answers:["Straw","Trunk","Tail"],             correct:1},
+  {q:"What pattern does a zebra have?",      num:3,  answers:["Stripe","Zigzag","Polka dots"],     correct:0},
+  {q:"Which animal has a very long neck?",   num:4,  answers:["Lion","Hippo","Giraffe"],           correct:2},
+  {q:"Which animal has very sharp teeth?",   num:5,  answers:["Owl","Crocodile","Zebra"],          correct:1},
+  {q:"Where does a hippo sit to stay cool?", num:6,  answers:["Playground","Sand","Mud"],          correct:2},
+  {q:"What does a cheetah have on its fur?", num:7,  answers:["Stars","Spots","Stripes"],          correct:1},
+  {q:"What color is a flamingo?",            num:8,  answers:["Green","Pink","Blue"],              correct:1},
+  {q:"What does an ostrich do very fast?",   num:9,  answers:["Fly","Swim","Run"],                 correct:2},
+  {q:"What does a gorilla like to eat?",     num:10, answers:["Pizza","Banana","Candy"],           correct:1},
+  {q:"Where do buffalo find grass to eat?",  num:11, answers:["Hills","Boat","Plane"],             correct:0},
+  {q:"Which animal jumps up and down?",      num:12, answers:["Elephant","Sloth","Monkey"],        correct:2},
+  {q:"Where does a monkey find a banana?",   num:13, answers:["Box","Tree","Sink"],                correct:1},
+  {q:"Where does a snake crawl?",            num:14, answers:["Ground","Clouds","Ceiling"],        correct:0},
+  {q:"What part of a bird helps it fly?",    num:15, answers:["Nose","Feet","Wings"],              correct:2},
+  {q:"Where do safari animals go to drink?", num:16, answers:["Coffee shop","Pond","Tub"],         correct:1},
+  {q:"What does a rhino eat for dinner?",    num:17, answers:["Grass","Pizza","Eggs"],             correct:0},
+  {q:"What color is an elephant?",           num:18, answers:["Red","Grey","Purple"],              correct:1},
+  {q:"How many humps does a camel have?",    num:19, answers:["1","2","3"],                        correct:1},
+  {q:"How many eyes does a monkey have?",    num:20, answers:["1","2","3"],                        correct:1},
+];
+
+let current = 0, score = 0, answered = false;
+
+// Lazy load helper — fades image in when ready, handles errors gracefully
+function loadImg(imgEl, src, altText) {
+  imgEl.classList.remove('loaded', 'error');
+  imgEl.alt = altText || '';
+
+  const temp = new Image();
+  temp.onload = () => {
+    imgEl.src = src;
+    imgEl.classList.add('loaded');
+  };
+  temp.onerror = () => {
+    imgEl.src = '';
+    imgEl.classList.add('error');
+  };
+  temp.src = src;
+}
+
+function loadQ() {
+  answered = false;
+  const q = QUESTIONS[current];
+
+  document.getElementById('q-counter').textContent = 'Question ' + (current + 1) + ' of ' + QUESTIONS.length;
+  document.getElementById('q-text').textContent = q.q;
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = '';
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('progress-bar').style.width = (current / QUESTIONS.length * 100) + '%';
+  document.getElementById('score').textContent = score;
+
+  // Load main image lazily
+  const mainImg = document.getElementById('main-img');
+  loadImg(mainImg, 'images/main_' + q.num + '.jpg', q.q);
+
+  // Build option buttons
+  const opts = document.getElementById('options');
+  opts.innerHTML = '';
+
+  [0, 1, 2].forEach(i => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.dataset.idx = i;
+
+    const im = document.createElement('img');
+    im.alt = q.answers[i];
+    im.loading = 'lazy';
+    im.decoding = 'async';
+
+    btn.appendChild(im);
+    opts.appendChild(btn);
+
+    // Load option image lazily
+    loadImg(im, 'images/opt_' + q.num + '_' + (i + 1) + '.jpg', q.answers[i]);
+
+    btn.onclick = () => selectAnswer(btn, i === q.correct, q);
+  });
+}
+
+function selectAnswer(btn, correct, q) {
+  if (answered) return;
+  answered = true;
+
+  document.querySelectorAll('.opt-btn').forEach(b => {
+    b.disabled = true;
+    if (parseInt(b.dataset.idx) === q.correct) b.classList.add('reveal');
+  });
+
+  const fb = document.getElementById('feedback');
+  if (correct) {
+    btn.classList.remove('reveal');
+    btn.classList.add('correct');
+    score++;
+    document.getElementById('score').textContent = score;
+    const msgs = ['Great job! 🎉', 'You got it! 🌟', 'Awesome! ✓', 'Brilliant! 🦁', 'Yes! Well done! 🐘'];
+    fb.textContent = msgs[Math.floor(Math.random() * msgs.length)];
+    fb.className = 'correct';
+  } else {
+    btn.classList.add('wrong');
+    fb.textContent = 'The answer is: ' + q.answers[q.correct];
+    fb.className = 'wrong';
+  }
+
+  const nb = document.getElementById('next-btn');
+  nb.style.display = 'block';
+  nb.textContent = current < QUESTIONS.length - 1 ? 'Next ➜' : 'See My Score! ⭐';
+}
+
+function nextQ() {
+  current++;
+  if (current >= QUESTIONS.length) { showEnd(); return; }
+  loadQ();
+}
+
+function showEnd() {
+  document.getElementById('quiz-screen').style.display = 'none';
+  document.getElementById('end-screen').style.display = 'block';
+  document.getElementById('progress-bar').style.width = '100%';
+  document.getElementById('end-score').textContent = score + ' / ' + QUESTIONS.length;
+
+  const p = score / QUESTIONS.length;
+  let t = '🦁', m = '';
+  if (p === 1)      { t = '🏆'; m = 'Perfect score! You are a safari superstar!'; }
+  else if (p >= 0.8){ t = '🌟'; m = 'Amazing! You know your safari animals!'; }
+  else if (p >= 0.6){ t = '🦒'; m = 'Good job! Keep exploring!'; }
+  else if (p >= 0.4){ t = '🐘'; m = 'Nice try! Want to play again?'; }
+  else              { t = '🐒'; m = 'Keep learning! Try again!'; }
+
+  document.getElementById('trophy-icon').textContent = t;
+  document.getElementById('end-msg').textContent = m;
+}
+
+function restart() {
+  current = 0; score = 0;
+  document.getElementById('quiz-screen').style.display = 'block';
+  document.getElementById('end-screen').style.display = 'none';
+  loadQ();
+}
+
+loadQ();
+</script>
+</body>
+</html>
